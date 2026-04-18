@@ -1,0 +1,40 @@
+name: SLSA Generic Generator
+on:
+  workflow_dispatch:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      digests: ${{ steps.hash.outputs.digests }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Artifact
+        run: |
+          # Example build step
+          echo "Building OpenEduCat ERP..."
+          mkdir build
+          cp -r backend build/
+          cp -r frontend build/
+          tar -czf openeducat-erp.tar.gz build/
+
+      - name: Generate hash
+        id: hash
+        run: |
+          set -euo pipefail
+          echo "hashes=$(sha256sum openeducat-erp.tar.gz | base64 -w0)" >> "$GITHUB_OUTPUT"
+
+  provenance:
+    needs: [build]
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: "${{ needs.build.outputs.hashes }}"
+      upload-assets: true
